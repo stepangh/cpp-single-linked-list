@@ -72,7 +72,7 @@ class SingleLinkedList {
         // Оператор проверки итераторов на неравенство
         // Противоположен !=
         [[nodiscard]] bool operator!=(const BasicIterator<const Type>& rhs) const noexcept {
-            return node_ != rhs.node_;
+            return !(node_ == rhs.node_);
         }
 
         // Оператор сравнения итераторов (в роли второго аргумента итератор)
@@ -84,7 +84,7 @@ class SingleLinkedList {
         // Оператор проверки итераторов на неравенство
         // Противоположен !=
         [[nodiscard]] bool operator!=(const BasicIterator<Type>& rhs) const noexcept {
-            return node_ != rhs.node_;
+            return !(node_ == rhs.node_);
         }
 
         // Оператор прединкремента. После его вызова итератор указывает на следующий элемент списка
@@ -101,7 +101,6 @@ class SingleLinkedList {
         // Инкремент итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         BasicIterator operator++(int) noexcept {
-            assert(node_ != nullptr);
             auto old_value(*this);
             ++(*this);
             return old_value;
@@ -153,14 +152,14 @@ public:
     // Если список пустой, возвращённый итератор будет равен end()
     // Результат вызова эквивалентен вызову метода cbegin()
     [[nodiscard]] ConstIterator begin() const noexcept {
-        return ConstIterator(head_.next_node);
+        return cbegin();
     }
 
     // Возвращает константный итератор, указывающий на позицию, следующую за последним элементом односвязного списка
     // Разыменовывать этот итератор нельзя — попытка разыменования приведёт к неопределённому поведению
     // Результат вызова эквивалентен вызову метода cend()
     [[nodiscard]] ConstIterator end() const noexcept {
-        return ConstIterator(nullptr);
+        return cend();
     }
 
     // Возвращает константный итератор, ссылающийся на первый элемент
@@ -203,7 +202,6 @@ public:
     }
 
     SingleLinkedList(const SingleLinkedList& other) {
-        assert(size_ == 0 && head_.next_node == nullptr);
         CopyList(other);
     }
 
@@ -223,10 +221,7 @@ public:
 
     // Сообщает, пустой ли список
     bool IsEmpty() const noexcept {
-        if (size_ != 0) {
-            return false;
-        }
-        return true;
+        return size_ == 0;
     }
 
     void PushFront(const Type& value) {
@@ -240,12 +235,14 @@ public:
      * Если при создании элемента будет выброшено исключение, список останется в прежнем состоянии
      */
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+        assert(pos.node_ != nullptr);
         pos.node_->next_node = new Node(value, pos.node_->next_node);
         ++size_;
         return Iterator(pos.node_->next_node);
     }
 
     void PopFront() noexcept {
+        assert(size_ > 0);
         Node* before_node = head_.next_node;
         head_.next_node = before_node->next_node;
         --size_;
@@ -257,6 +254,8 @@ public:
      * Возвращает итератор на элемент, следующий за удалённым
      */
     Iterator EraseAfter(ConstIterator pos) noexcept {
+        assert(pos.node_ != nullptr && pos.node_->next_node != nullptr);
+        assert(size_ > 0);
         if (pos.node_->next_node) {
             Node* temp = pos.node_->next_node;
             pos.node_->next_node = pos.node_->next_node->next_node;
@@ -293,20 +292,14 @@ private:
 
     template<typename T>
     void CopyList(T& list) {
-        SingleLinkedList list_copy;
-        SingleLinkedList list_reverse;
-
-        // первый цикл вставляет элементы в обратном порядке
-        for (auto it = list.begin(); it != list.end(); ++it) {
-            list_reverse.PushFront(*it);
+        SingleLinkedList tmp;
+        auto t = tmp.before_begin();
+        for (auto& item : list) {
+            t = tmp.InsertAfter(t, item);
         }
-        // второй цикл вставляет элементы в нужном для обмена порядке
-        for (auto it = list_reverse.begin(); it != list_reverse.end(); ++it) {
-            list_copy.PushFront(*it);
-        }
-
-        swap(list_copy);
+        swap(tmp);
     }
+
 };
 
 template <typename Type>
@@ -344,5 +337,5 @@ bool operator>(const SingleLinkedList<Type>& lhs, const SingleLinkedList<Type>& 
 
 template <typename Type>
 bool operator>=(const SingleLinkedList<Type>& lhs, const SingleLinkedList<Type>& rhs) {
-    return !(rhs > lhs);
+    return !(lhs < rhs);
 }
